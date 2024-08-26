@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: core-stage-lms-namespace
+  name: core-stage-lms-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: dev-stage-group
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:211125646380:certificate/d3f708b7-27e7-4ff3-8022-184b913ce630
+spec:
+  ingressClassName: alb
+  rules:
+    - host: corestagelms.homealankar.in
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: core-stage-lms-backend-service
+                port:
+                  number: 80
+    - host: coredeveloplms.homealankar.in
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dev-lms-backend-service
+                port:
+                  number: 80

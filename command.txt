@@ -1,0 +1,180 @@
+### create cluster and nodegroup
+eksctl create cluster \
+  --name ha-core-dev-cluster \
+  --node-type m6a.large \
+  --nodes 1 \
+  --nodes-min 1 \
+  --nodes-max 2 \
+  --region ap-south-1 \
+  --zones=ap-south-1a,ap-south-1b,ap-south-1c \
+  --privateNetworking: true
+  --nodegroup-name core-dev-lms-ng
+
+aws eks update-kubeconfig --name ha-core-dev-cluster
+
+kubectl config get-contexts
+
+kubectl config use-context arn:aws:eks:ap-south-1:211125646380:cluster/ha-core-dev-cluster
+
+
+kubectl create namespace core-dev-lms-namespace
+
+with public ipv4 address
+eksctl create nodegroup --cluster ha-core-dev-cluster --node-type t3a.medium --nodes 1 --nodes-min 1 --nodes-max 3 --region ap-south-1 --name dev-lms-ng
+
+
+with private ipv4 address only
+
+eksctl create nodegroup \
+    --cluster ha-core-dev-cluster \
+    --node-type m6a.large \
+    --nodes 1 \
+    --nodes-min 1 \
+    --nodes-max 3 \
+    --region ap-south-1 \
+    --name core-prod-lms-ng \
+    --node-private-networking
+
+
+aws eks list-nodegroups --cluster-name ha-core-dev-cluster  or eksctl get nodegroup --cluster=ha-core-deve-cluster 
+
+
+aws eks delete-nodegroup --cluster-name ha-core-dev-cluster  --nodegroup-name dev-lms-ng
+
+
+curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.5.4/docs/install/iam_policy.json
+
+#To add policy to ALB
+aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json
+
+#To provide access oidc to role
+eksctl utils associate-iam-oidc-provider --region ap-south-1 --cluster ha-core-dev-cluster --approve
+
+
+eksctl create iamserviceaccount --cluster ha-core-dev-cluster --namespace kube-system --name aws-load-balancer-controller --attach-policy-arn arn:aws:iam::211125646380:policy/AWSLoadBalancerControllerIAMPolicy --override-existing-serviceaccounts --approve
+
+
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update eks
+
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=ha-core-dev-cluster \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller 
+
+
+optional
+kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller/crds?ref=master"
+
+
+kubectl get deployment -n kube-system aws-load-balancer-controller
+
+To github secrets with encrypted for eks
+ cat ~/.kube/config | base64
+ 
+To remove kubeconfig in locally
+ rm ~/.kube/config
+
+
+kubectl scale deployment core-dev-lms-backend  --replicas=1 -n core-dev-lms-namespace
+
+aws eks delete-cluster --name ha-core-deve-cluster --region ap-south-1
+
+
+
+aws eks describe-nodegroup --region ap-south-1 --cluster-name ha-core-dev --nodegroup-name dev-lms-ng-1
+
+
+aws eks update-nodegroup-config --region ap-south-1 --cluster-name ha-core-dev --nodegroup-name dev-lms-ng-1 --scaling-config minSize=2,desiredSize=2
+
+get role
+
+ STACK_NAME = eksctl get nodegroup --cluster ha-dev-cluster -o json
+  aws cloudformation describe-stack-resources --stack-name eksctl-ha-core-dev-cluster-nodegroup-core-dev-lms-ng
+
+aws iam attach-role-policy \
+--role-name my-worker-node-role \
+--policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy \
+--policy-arn arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+
+
+
+aws docdb describe-db-cluster-parameters \
+    --db-cluster-parameter-group-name default.docdb5.0
+
+
+
+
+    aws s3 cp s3://lmsfile-ha s3://ha-dev-lms --recursive --profile source-profile --region ap-south-1 --role-arn s3_migration_role
+
+
+aws s3 sync s3://lmsfile-ha  /Users/sk/Documents/s3-lms
+
+
+eksctl create nodegroup \
+    --cluster ha-core-dev-cluster \
+    --node-type  t3a.medium \
+    --nodes 1 \
+    --nodes-min 1 \
+    --nodes-max 3 \
+    --region ap-south-1 \
+    --name coredev-lms-ng \
+    --node-private-networking
+
+
+aws iam attach-role-policy \
+--role-name  \
+--policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy \
+--policy-arn arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+
+
+eksctl utils associate-iam-oidc-provider --cluster eksctl create iamserviceaccount \
+  --name cloudwatch-agent \
+  --namespace amazon-cloudwatch --cluster my-cluster-name \
+  --role-name my-service-account-role \
+  --attach-policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy \
+  --role-only \
+  --approve --approve
+
+eksctl create iamserviceaccount \
+  --name cloudwatch-agent \
+  --namespace amazon-cloudwatch --cluster ha-core-dev-cluster \
+  --role-name eksctl-ha-core-dev-cluster-addon-iamserviceac \
+  --attach-policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy \
+  --role-only \
+  --approve
+
+
+  aws eks create-addon --addon-name amazon-cloudwatch-observability --cluster-name ha-core-dev-cluster --service-account-role-arn arn:aws:iam::211125646380:role/eks-aws-cloudwatch-addon
+
+eks fargate 
+
+eksctl create fargateprofile --cluster ha-core-dev-cluster --name core-prod-lms-ng --namespace core-prod-lms-namespace
+
+eksctl create fargateprofile --cluster ha-core-dev-cluster --name core-dev-lms-ng-fargate --namespace core-stage-lms-namespace
+
+
+
+eksctl delete fargateprofile --cluster ha-core-dev-cluster --name core-dev-lms-ng --namespace core-stage-lms-namespace
+
+
+eksctl utils associate-iam-oidc-provider --cluster ha-core-dev-cluster --approve
+
+eksctl create iamserviceaccount \
+  --name cloudwatch-agent \
+  --namespace amazon-cloudwatch --cluster ha-core-dev-cluster \
+  --role-name eks-aws-cloudwatch-addon \
+  --attach-policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy \
+  --approve
+
+delete service account
+eksctl delete iamserviceaccount --cluster ha-core-dev-cluster --namespace amazon-cloudwatch --name cloudwatch-agent
+
+
+To take dump  
+mongodump --db mongodb+srv://devmongo:VNhGqE9A0RwO6Gjr@devinstance.zwg41ew.mongodb.net/lms_db?retryWrites=true&w=majority --out /Users/sk/Downloads  
+
+To restore    
+mongorestore --uri "mongodb+srv://mongostage:iWncdcleyMxowdOo@stageinstance.nvvetes.mongodb.net/lms_db?retryWrites=true&w=majority" /Users/sk/Downloads

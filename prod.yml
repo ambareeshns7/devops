@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: core-prod-lms-namespace
+  name: core-prod-lms-backend
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: core-prod-lms-backend
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: core-prod-lms-backend
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: alpha.eksctl.io/nodegroup-name
+                    operator: In
+                    values:
+                      - core-prod-lms-ng
+      containers:
+        - name: core-prod-lms-backend
+          image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # image: 211125646380.dkr.ecr.ap-south-1.amazonaws.com/ha_prod_lms_backend:f4e0c044734aa573f4aa8d354f2036f2e5d4e08a_prod
+          ports:
+            - containerPort: 4000
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "1Gi"
+            limits:
+              cpu: "500m"
+              memory: "2Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-prod-lms-backend-service
+  namespace: core-prod-lms-namespace
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: core-prod-lms-backend
+  type: NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: core-prod-lms-namespace
+  name: core-prod-lms-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:211125646380:certificate/d3f708b7-27e7-4ff3-8022-184b913ce630
+spec:
+  ingressClassName: alb
+  rules:
+    - host: corelms.homealankar.in
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: core-prod-lms-backend-service
+                port:
+                  number: 80

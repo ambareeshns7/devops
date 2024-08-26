@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: core-dev-lms-namespace
+  name: core-dev-lms-backend
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: core-dev-lms-backend
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: core-dev-lms-backend
+    spec:
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #         - matchExpressions:
+      #             - key: alpha.eksctl.io/nodegroup-name
+      #               operator: In
+      #               values:
+      #                 - dev-lms-ng
+      containers:
+        - name: core-dev-lms-backend
+          image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # image: 211125646380.dkr.ecr.ap-south-1.amazonaws.com/ha_lms_backend:2b6917957c808ac30d4bf11e11bf9d17d1a1f2b6_develop
+          ports:
+            - containerPort: 4000
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "1Gi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+#           livenessProbe:
+#             httpGet:
+#               path: /
+#               port: 4000
+#             initialDelaySeconds: 30
+#             periodSeconds: 10
+#             timeoutSeconds: 5
+#             failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-dev-lms-backend-service
+  namespace: core-dev-lms-namespace
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: core-dev-lms-backend
+  type: NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: core-dev-lms-namespace
+  name: core-dev-lms-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:211125646380:certificate/d3f708b7-27e7-4ff3-8022-184b913ce630
+spec:
+  ingressClassName: alb
+  rules:
+    - host: coredevlms.homealankar.in
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: core-dev-lms-backend-service
+                port:
+                  number: 80

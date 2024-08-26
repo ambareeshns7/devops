@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-lms-backend
+  namespace: core-test-ns
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: test-lms-backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: test-lms-backend
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: alpha.eksctl.io/nodegroup-name
+                    operator: In
+                    values:
+                      - dev-lms-ng
+      containers:
+        - name: test-lms-backend
+          # image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          image: 211125646380.dkr.ecr.ap-south-1.amazonaws.com/test_repo:a86975dd31726e1ffb2189c7ef3aa112a62e74aa_test
+          ports:
+            - containerPort: 4000
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-backend-service
+  namespace: core-test-ns
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: test-lms-backend
+  type: NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: core-test-ns
+  name: lms-test-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:211125646380:certificate/d3f708b7-27e7-4ff3-8022-184b913ce630
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: test-backend-service
+                port:
+                  number: 80

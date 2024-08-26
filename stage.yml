@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-stage-lms-backend
+  namespace: core-stage-lms-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: core-stage-lms-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: core-stage-lms-backend
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: alpha.eksctl.io/nodegroup-name
+                    operator: In
+                    values:
+                      - core-dev-lms-ng
+      containers:
+        - name: core-stage-lms-backend
+          image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # image: 211125646380.dkr.ecr.ap-south-1.amazonaws.com/ha_lms_backend:0bc556a38517e8d2eb01168554420cf03c76372b_stage
+          ports:
+            - containerPort: 4000
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "2Gi"
+            requests:
+              cpu: "250m"
+              memory: "1Gi"
+          # livenessProbe:
+          #   httpGet:
+          #     path: /graphql
+          #     port: 4000
+          #     scheme: HTTP
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          # readinessProbe:
+          #   httpGet:
+          #     path: /graphql
+          #     port: 4000
+          #     scheme: HTTP
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-stage-lms-backend-service
+  namespace: core-stage-lms-namespace
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: core-stage-lms-backend
+  type: NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: core-stage-lms-namespace
+  name: core-stage-lms-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:211125646380:certificate/d3f708b7-27e7-4ff3-8022-184b913ce630
+spec:
+  ingressClassName: alb
+  rules:
+    - host: corestagelms.homealankar.in
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: core-stage-lms-backend-service
+                port:
+                  number: 80

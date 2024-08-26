@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: test-ing-ns
+  name: test-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: app-color-lb
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:211125646380:certificate/3645697c-dc71-46a7-a613-fb0ea669a5ed
+spec:
+  ingressClassName: alb
+  rules:
+    - host: coretest.youkraft.info  
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: test-backend-service
+              port:
+                number: 80
+    - host: coredev.youkraft.info  
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: test-dev-backend-service
+              port:
+                number: 80
