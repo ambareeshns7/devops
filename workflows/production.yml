@@ -1,0 +1,60 @@
+# name: Deploy to Amazon ECS Dev
+# on:
+#   push:
+#     branches:
+#       - master
+# jobs:
+#   deploy:
+#     name: Deploy
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v2
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v1
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ secrets.AWS_REGION }}
+
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v1
+#         with:
+#           mask-password: "true"
+
+#       - name: Build, tag, and push image to Amazon ECR
+#         id: build-image
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#           ECR_REPOSITORY: ha_prod_lms_backend
+#           IMAGE_TAG: ${{ github.sha }}_prod
+#         run: |
+#           # Build a docker container and
+#           # push it to ECR so that it can>>>>
+#           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG --build-arg PORT=${{ secrets.PORT }} --build-arg NODE_ENV=PROD --build-arg MONGO_URI=${{secrets.PROD_MONGO_URI}}  --build-arg JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY}} --build-arg AWS_REGION=${{ secrets.AWS_REGION }}  --build-arg AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --build-arg EXOTEL_API_KEY=${{secrets.PROD_EXOTEL_API_KEY }} --build-arg EXOTEL_API_TOKEN=${{ secrets.PROD_EXOTEL_API_TOKEN }} --build-arg EXOTEL_ACCOUNT_SID=${{ secrets.PROD_EXOTEL_ACCOUNT_SID}} --build-arg EXOTEL_EXOPHONE=${{ secrets.PROD_EXOTEL_EXOPHONE }} --build-arg EXOTEL_SUB_DOMAIN=${{ secrets.PROD_EXOTEL_SUB_DOMAIN}} .
+#           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+#           echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+#           sudo echo "${{ secrets.DEV_KUBE_CONFIG_DATA }}" | base64 -d > /tmp/config
+#           echo "Kubernetes config data made available"
+#           export KUBECONFIG=/tmp/config 
+#           less /tmp/config 
+#           echo "${{ secrets.DEV_KUBE_CONFIG_DATA }}" | awk '{print length}' 
+#           echo "Kubernetes KUBECONFIG configured"
+#           kubectl config set-context --current --namespace=core-prod-lms-namespace
+#           kubectl set image deployment/core-prod-lms-backend core-prod-lms-backend=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+#           echo "Application is deployed"
+#           rm /tmp/config
+#           echo "Cleanup is completed"
+
+#       - name: slack
+#         uses: 8398a7/action-slack@v3
+#         with:
+#           status: ${{ job.status }}
+#           fields: repo,ref,message,commit,workflow,author,eventName
+#         env:
+#           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+#           MATRIX_CONTEXT: ${{ toJson(matrix) }}
+#         if: always()
